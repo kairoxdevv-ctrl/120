@@ -2,9 +2,10 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Stickman Runner</title>
+<title>Stickman Dino Rider</title>
+
 <style>
-body {
+body{
 margin:0;
 background:#111;
 display:flex;
@@ -14,8 +15,8 @@ height:100vh;
 }
 
 canvas{
-background:#222;
-border-radius:12px;
+background:#eee;
+border-radius:10px;
 }
 </style>
 </head>
@@ -25,20 +26,21 @@ border-radius:12px;
 <canvas id="game" width="900" height="300"></canvas>
 
 <script>
-const c = document.getElementById("game");
-const ctx = c.getContext("2d");
+const c=document.getElementById("game");
+const ctx=c.getContext("2d");
 
-let ground = 240;
-let y = ground;
-let vy = 0;
-let gravity = 0.7;
-let jumping = false;
+const GROUND=240;
+let y=GROUND;
+let vy=0;
+let gravity=0.7;
+let jumping=false;
 
 let obstacles=[];
-let speed=5;
+let speed=6;
 let score=0;
+let high=localStorage.high||0;
 let frame=0;
-let gameOver=false;
+let dead=false;
 
 function jump(){
 if(!jumping){
@@ -48,53 +50,70 @@ jumping=true;
 }
 
 document.addEventListener("keydown",e=>{
-if(e.code==="Space") jump();
-if(gameOver && e.code==="Enter") reset();
+if(e.code==="Space"){
+if(dead) reset();
+else jump();
+}
 });
-
-c.addEventListener("touchstart",jump);
 
 function reset(){
 obstacles=[];
-speed=5;
+speed=6;
 score=0;
 frame=0;
-y=ground;
+y=GROUND;
 vy=0;
-gameOver=false;
-loop();
+dead=false;
+}
+
+function drawDino(x,y){
+ctx.fillStyle="#333";
+
+// body
+ctx.fillRect(x,y-25,50,25);
+
+// head
+ctx.fillRect(x+35,y-45,25,20);
+
+// legs
+ctx.fillRect(x+5,y,8,15);
+ctx.fillRect(x+30,y,8,15);
+
+// tail
+ctx.fillRect(x-15,y-15,15,10);
 }
 
 function drawStickman(x,y,run){
-ctx.strokeStyle="white";
-ctx.lineWidth=3;
+ctx.strokeStyle="black";
+ctx.lineWidth=2;
+
+let swing=Math.sin(run)*5;
 
 // head
 ctx.beginPath();
-ctx.arc(x,y-45,10,0,Math.PI*2);
+ctx.arc(x,y-55,6,0,Math.PI*2);
 ctx.stroke();
 
 // body
 ctx.beginPath();
-ctx.moveTo(x,y-35);
-ctx.lineTo(x,y-10);
+ctx.moveTo(x,y-49);
+ctx.lineTo(x,y-35);
 ctx.stroke();
 
 // arms
-let a=Math.sin(run)*10;
 ctx.beginPath();
-ctx.moveTo(x,y-30);
-ctx.lineTo(x-10,y-20+a);
-ctx.moveTo(x,y-30);
-ctx.lineTo(x+10,y-20-a);
+ctx.moveTo(x,y-45);
+ctx.lineTo(x-6,y-40+swing);
+ctx.moveTo(x,y-45);
+ctx.lineTo(x+6,y-40-swing);
 ctx.stroke();
 
-// legs
+// legs (sitting)
 ctx.beginPath();
-ctx.moveTo(x,y-10);
-ctx.lineTo(x-8,y+a);
-ctx.moveTo(x,y-10);
-ctx.lineTo(x+8,y-a);
+ctx.moveTo(x,y-35);
+ctx.lineTo(x-4,y-28);
+ctx.moveTo(x,y-35);
+ctx.lineTo(x+4,y-28);
 ctx.stroke();
 }
 
@@ -102,61 +121,64 @@ function spawn(){
 obstacles.push({x:900,w:20,h:40});
 }
 
-function loop(){
-if(gameOver)return;
+function collide(o){
+return o.x<130 && o.x+o.w>70 && y>GROUND-o.h;
+}
 
-ctx.clearRect(0,0,900,300);
+function loop(){
+ctx.fillStyle="#eee";
+ctx.fillRect(0,0,900,300);
 
 // ground
-ctx.strokeStyle="#555";
+ctx.strokeStyle="#888";
 ctx.beginPath();
-ctx.moveTo(0,ground+10);
-ctx.lineTo(900,ground+10);
+ctx.moveTo(0,GROUND+10);
+ctx.lineTo(900,GROUND+10);
 ctx.stroke();
 
 // physics
 vy+=gravity;
 y+=vy;
-if(y>=ground){
-y=ground;
+if(y>=GROUND){
+y=GROUND;
 vy=0;
 jumping=false;
 }
 
-// stickman
-drawStickman(100,y,frame*0.3);
-
-// obstacles
+// spawn
 if(frame%90===0)spawn();
 
+// obstacles
+ctx.fillStyle="black";
 for(let o of obstacles){
 o.x-=speed;
-ctx.fillStyle="#0f0";
-ctx.fillRect(o.x,ground-o.h,o.w,o.h);
-
-// collision
-if(o.x<110 && o.x+o.w>90 && y>ground-o.h){
-gameOver=true;
-}
+ctx.fillRect(o.x,GROUND-o.h,o.w,o.h);
+if(collide(o)) dead=true;
 }
 
-obstacles=obstacles.filter(o=>o.x>-30);
+obstacles=obstacles.filter(o=>o.x>-40);
+
+// DINO
+drawDino(80,y);
+
+// RIDER
+drawStickman(105,y-20,frame*0.3);
 
 // score
-score+=0.02;
-speed+=0.0005;
+score+=0.05;
+speed+=0.0008;
+if(score>high){high=Math.floor(score);localStorage.high=high;}
 
-ctx.fillStyle="white";
+ctx.fillStyle="black";
 ctx.font="16px Arial";
 ctx.fillText("Score: "+Math.floor(score),20,25);
+ctx.fillText("High: "+high,20,45);
 
-// game over
-if(gameOver){
-ctx.fillStyle="red";
+if(dead){
 ctx.font="32px Arial";
-ctx.fillText("GAME OVER",350,130);
+ctx.fillText("GAME OVER",360,130);
 ctx.font="16px Arial";
-ctx.fillText("Press ENTER to restart",360,170);
+ctx.fillText("Press SPACE",390,170);
 return;
 }
 
